@@ -1,0 +1,48 @@
+#!/bin/bash
+
+set -x -e
+
+date1=$(date -u +"%s")
+
+echo "Creating a directory in HDFS to store the input data"
+hadoop fs -mkdir /user/dbpedia
+
+echo "Installing instance_types_en.nt.bz2"
+wget http://data.dws.informatik.uni-mannheim.de/dbpedia/2014/en/instance_types_en.nt.bz2
+bzip2 -d instance_types_en.nt.bz2
+hadoop fs -copyFromLocal instance_types_en.nt /user/dbpedia
+
+echo "Installing page_links_en.nt.bz2"
+wget http://data.dws.informatik.uni-mannheim.de/dbpedia/2014/en/page_links_en.nt.bz2
+bzip2 -d page_links_en.nt.bz2
+hadoop fs -copyFromLocal page_links_en.nt /user/dbpedia
+
+echo "Installing page_ids_en.nt.bz2"
+wget http://data.dws.informatik.uni-mannheim.de/dbpedia/2014/en/page_ids_en.nt.bz2
+bzip2 -d page_ids_en.nt.bz2
+hadoop fs -copyFromLocal page_ids_en.nt /user/dbpedia
+
+echo "Installing pagerank_en_2014.tsv.bz2"
+wget http://people.aifb.kit.edu/ath/download/pagerank_en_2014.tsv.bz2
+bzip2 -d pagerank_en_2014.tsv.bz2
+hadoop fs -copyFromLocal pagerank_en_2014.tsv /user/dbpedia
+
+echo "Installing 2015_02_clickstream.tsv.gz"
+wget http://files.figshare.com/1927919/2015_02_clickstream.tsv.gz
+gzip -d 2015_02_clickstream.tsv.gz
+awk '(NF==6){print}' 2015_02_clickstream.tsv > 2015_02_clickstream_filtered.tsv 
+hadoop fs -copyFromLocal 2015_02_clickstream_filtered.tsv /user/dbpedia
+
+echo "Installing training data"
+hadoop fs -mkdir /user/dbpedia/training
+cd training-data
+for f in *.txt; do
+  hadoop fs -copyFromLocal "$f" "/user/dbpedia/training/$f"
+done
+
+date2=$(date -u +"%s")
+diff=$(($date2-$date1))
+echo "$(($diff / 60)) minutes and $(($diff % 60)) seconds elapsed."
+
+echo "Script success. Goodbye!"
+
