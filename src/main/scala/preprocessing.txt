@@ -1,0 +1,63 @@
+import org.apache.spark.SparkContext
+import org.apache.spark.SparkContext._
+import org.apache.spark.SparkConf
+import org.apache.spark.rdd.RDD
+import org.apache.spark.graphx._
+import java.util.regex.Pattern
+import utilities._;
+
+val base_dir_path = "/user/dbpedia/"
+val vertices_dir_path = base_dir_path + "vertices"
+val edges_dir_path = base_dir_path + "edges"
+val features_dir_path = base_dir_path + "features"
+val page_ids_file_path = base_dir_path + "page_ids_en.nt"
+val click_log_file_path = base_dir_path + "2015_02_clickstream_filtered.tsv"
+
+def simple_nt2kv(nt: String): (String, List[(String, String)]) = {
+  val match_vertex(first, second, third) = nt
+  (parse(first), List((parse(second), parse(third))))
+}
+
+def parse_pageid2(nt: String): (String, Long) = {
+  val match_vertex(first, second, third) = nt
+  val match_pageid(pageid) = third.trim
+  (parse(first), pageid.toLong)
+}
+
+def parse_pagelink(nt: String): (String, String, String) = {
+  val match_vertex(first, second, third) = nt
+  (parse(first), parse(second), parse(third))
+}
+
+def fold_dict(a: List[(String, String)], b: List[(String, String)]) = a ++ b
+
+val dbpediaNodes: RDD[(String, List[(String, String)])] = sc.textFile(base_dir_path + "instance_types_en.nt").
+                                                             filter(elem => !elem.startsWith("#")).
+                                                             map(simple_nt2kv).
+                                                             reduceByKey(fold_dict)
+val dbpediaPageIds: RDD[(String, Long)] = sc.textFile(base_dir_path + "page_ids_en.nt").
+                                             filter(elem => !elem.startsWith("#")).
+                                             map(parse_pageid2)
+val pageLinks: RDD[(Long, String, Long)] = sc.textFile(base_dir_path + "/page_links_en.nt").
+                                              filter(elem => !elem.startsWith("#")).
+                                              map(parse_pagelink).
+                                              map({ case (k1, k2, k3) => (k1, (k2, k3)) }).
+                                              join(dbpediaPageIds).
+                                              map({ case (_, ((k2, k3), v1)) => (k3, (v1, k2)) }).
+                                              join(dbpediaPageIds).
+                                              map({ case (_, ((v1, k2), v2)) => (v1, k2, v2) })
+val vertexRDD: RDD[(Long, WikiNode)] = dbpediaNodes.join(dbpediaPageIds).
+                                                    map(x => (x._2._2, WikiNode(x._1, x._2._1)))
+val pageRank: RDD[(Long, Double)] = sc.textFile(base_dir_path + "pagerank_en_2014.tsv").
+                                       filter(elem => !elem.startsWith("#")).
+                                       map(parse_pagerank).
+                                       join(dbpediaPageIds).
+                                       map({ case (v1, (v2, v3)) => (v3, v2) })
+val clickStream: RDD[(Long, Iterable[(Long, Double)])] = sc.textFile(base_dir_path + "2015_02_clickstream_filtered.tsv").
+                                                            filter (filterLogLine).
+	                                                    map (x => parseLogLine(x)).
+                                                            groupByKey().
+                                                            map(x => (x._1, average(x._2)))
+val features: RDD[ (Long, WikiNodeFeatures)] = pageRank.join(clickStream).
+                                                        map({case (v_id, (p_rank, l)) => (v_id, WikiNodeFeatures(p_rank, l))})
+

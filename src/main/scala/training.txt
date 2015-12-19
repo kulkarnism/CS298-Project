@@ -1,0 +1,79 @@
+import org.apache.spark.rdd.RDD
+import org.apache.spark.SparkContext
+import org.apache.spark.SparkContext._
+import org.apache.spark.SparkConf
+import org.apache.spark.graphx._
+import java.io.PrintWriter
+import java.io.File
+import scala.collection.mutable.ArrayBuffer
+import org.apache.spark.mllib.linalg.Vectors
+import org.apache.spark.AccumulatorParam
+
+val training_dir_path = "/user/dbpedia/training/"
+
+def score(features: Array[Double], weights: ArrayBuffer[Double]): Double = {
+  require(features.size == weights.size)
+  var result = 0d
+  for (i <- 0 until features.size) {
+    result += features(i) * weights(i)
+  }
+  result
+}
+
+def initializeWeights(dimensions: Int): ArrayBuffer[Double] = {
+  val r = scala.util.Random
+  val result = ArrayBuffer.fill(dimensions)(0d)
+  for (i <- 0 until dimensions) {
+    result(i) = r.nextDouble()
+  }
+  result
+}
+
+def listNet(sc: SparkContext, trainingSet: List[Instance], iterations: Int, stepSize: Double ): ArrayBuffer[Double] = {
+  val weights = initializeWeights(2)
+  for (i <- 1 to iterations) {
+    val gradient = sc.accumulator(ArrayBuffer.fill(2)(0d))(ArrayAccumulatorParam)
+    val loss = sc.accumulator(0.0)
+    for (q <- trainingSet) {
+      val expRelScores = q.docs.map(y => math.exp(y.label.toDouble))
+      val sumExpRelScores = expRelScores.reduce(_ + _)
+      val P_y = expRelScores.map(y => y / sumExpRelScores);
+
+      val ourScores = q.docs.map(y => score(y.features, weights))
+      val expOurScores = ourScores.map(z => math.exp(z))
+      val sumExpOurScores = expOurScores.reduce(_ + _)
+      val P_z = expOurScores.map(z => z / sumExpOurScores)
+
+      var lossForAQuery = 0.0;
+      var gradientForAQuery = ArrayBuffer.fill(2)(0d)
+      for (j <- 0 to q.docs.length - 1) {
+        val t = q.docs(j).features.map(x => x * (P_z(j) - P_y(j)))
+
+        ArrayAccumulatorParam.addInPlace(gradientForAQuery, t)
+        lossForAQuery += -P_y(j) * math.log(P_z(j))
+      }
+      gradient += gradientForAQuery
+      loss += lossForAQuery
+    }
+    ArrayAccumulatorParam.subtractInPlace(weights, gradient.value.map(y => y * stepSize))
+  }
+  weights
+}
+
+def prepare(query: String, fileName: String): Instance = {
+  val docs = sc.textFile(training_dir_path + fileName).
+                map(x => {
+                       val r = x.split(",", -1)
+                       require(r.size == 4, s"Invalid record $x")
+                       DocData(r(0), Array(r(1).toDouble, r(2).toDouble), r(3).toInt)
+                   }).collect()
+  Instance(query, docs.toList)
+}
+
+val trainingData = List(prepare("wiki:The_Good_Wife", "the_good_wife.txt"),
+                        prepare("wiki:Leonardo_DiCaprio", "leonardo_dicaprio.txt"),
+                        prepare("wiki:Big_Bang_Theory", "big_bang_theory.txt"),
+                        prepare("wiki:How_I_Met_Your_Mother", "how_i_met_your_mother.txt"),
+                        prepare("wiki:Desperate_Housewives", "desperate_housewives.txt"))
+
+

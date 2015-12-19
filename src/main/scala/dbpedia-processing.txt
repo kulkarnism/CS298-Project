@@ -1,0 +1,28 @@
+import org.apache.spark.SparkContext
+import org.apache.spark.SparkContext._
+import org.apache.spark.SparkConf
+import org.apache.spark.rdd.RDD
+import org.apache.spark.graphx._
+import java.util.regex.Pattern
+import utilities._;
+import scala.collection.mutable.ArrayBuffer;
+
+val base_dir_path = "/user/dbpedia/"
+val vertices_dir_path = base_dir_path + "vertices"
+val edges_dir_path = base_dir_path + "edges"
+val features_dir_path = base_dir_path + "features"
+val page_ids_file_path = base_dir_path + "page_ids_en.nt"
+val click_log_file_path = base_dir_path + "2015_02_clickstream_filtered.tsv"
+
+val pageLinks: RDD[(Long, Long)] = sc.textFile(edges_dir_path).
+                                      map(parse_pagelink2)
+val features: RDD[(Long, WikiNodeFeatures)] = sc.objectFile(features_dir_path)
+val clickLogs: RDD[(Long, Iterable[(Long, Double)])] = sc.textFile(click_log_file_path).
+                                                              filter(filterLogLine).
+                                                              map(x => parseLogLine(x)).
+                                                              groupByKey().
+                                                              map(x => (x._1, average(x._2)))
+val vertexRDD: RDD[(Long, WikiNode)] = sc.objectFile(vertices_dir_path).
+                                          filter(x => (x._2 != null))
+//Pretrained model
+val model: scala.collection.mutable.ArrayBuffer[Double] = ArrayBuffer(-0.0822062127889407, 7.241938658943859)
