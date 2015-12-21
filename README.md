@@ -37,7 +37,7 @@ http://www.scala-sbt.org/download.html
   spark-shell --jars target/scala-2.10/dbpedia-listnet_2.10-1.0.jar
 * Import the dbpedia ListNet ranking script using following command,  
   :load src/main/scala/dbpedia-processing.txt
-* Execute following command to rank the DBpedia dataset for a given DBpedia entity e.g. "[Friends]". This command returns 50 results for DBpedia entities connected to "[Friends]" ranked with ListNet algorithm.
+* Execute following command to rank the DBpedia dataset for a given DBpedia entity e.g. "[Friends]". Following command returns 50 results for DBpedia entities connected to "[Friends]" ranked with ListNet algorithm.
     * val friends_r=rank(vertexRDD, pageLinks, features, filterMovieDomain, "wiki:Friends", model, 50)
 
 [dbpedia-ml]: https://github.com/kulkarnism/CS298-Project
