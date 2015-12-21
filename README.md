@@ -24,7 +24,22 @@ http://www.scala-sbt.org/download.html
 
 ### Training the model
 
+* Log into Spark shell as follows,  
+  spark-shell --jars target/scala-2.10/dbpedia-listnet_2.10-1.0.jar
+* Import the dbpedia ListNet training script using following command,  
+  :load src/main/scala/training.txt
+* Execute following commands to train the DBpedia recommendation engine. The training dataset is already uploaded to HDFS.
+    * val model = listNet(sc, trainingData, 1000, 0.1)   
+    Please note that the ListNet model should be persisted for Ranking purpose.
+
 ### Ranking
+* Log into Spark shell as follows,  
+  spark-shell --jars target/scala-2.10/dbpedia-listnet_2.10-1.0.jar
+* Import the dbpedia ListNet ranking script using following command,  
+  :load src/main/scala/dbpedia-processing.txt
+* Execute following command to rank the DBpedia dataset for a given DBpedia entity e.g. "[Friends]". This command returns 50 results for DBpedia entities connected to "[Friends]" ranked with ListNet algorithm.
+    * val friends_r=rank(vertexRDD, pageLinks, features, filterMovieDomain, "wiki:Friends", model, 50)
 
 [dbpedia-ml]: https://github.com/kulkarnism/CS298-Project
 [init-dataset]: https://github.com/kulkarnism/CS298-Project/blob/master/init-dataset
+[Friends]: http://dbpedia.org/page/Friends
