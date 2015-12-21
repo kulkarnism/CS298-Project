@@ -9,7 +9,7 @@ http://spark.apache.org/docs/latest/ec2-scripts.html
 * Download and install SBT (Simple Build Tool)  
 http://www.scala-sbt.org/download.html
 * Execute [init-dataset] script to download & install necessary DBpedia datasets for testing purpose
-* Clone [dbpedia-ml] project from github & build it using "sbt clean package" command
+* Clone [CS298-Project] project from github & build it using "sbt clean package" command
 
 ### Preprocessing the DBpedia dataset
 
@@ -40,6 +40,6 @@ http://www.scala-sbt.org/download.html
 * Execute following command to rank the DBpedia dataset for a given DBpedia entity e.g. "[Friends]". Following command returns 50 results for DBpedia entities connected to "[Friends]" ranked with ListNet algorithm.
     * val friends_r=rank(vertexRDD, pageLinks, features, filterMovieDomain, "wiki:Friends", model, 50)
 
-[dbpedia-ml]: https://github.com/kulkarnism/CS298-Project
+[CS298-Project]: https://github.com/kulkarnism/CS298-Project
 [init-dataset]: https://github.com/kulkarnism/CS298-Project/blob/master/init-dataset
 [Friends]: http://dbpedia.org/page/Friends
